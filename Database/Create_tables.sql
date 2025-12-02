@@ -173,9 +173,11 @@ CREATE TABLE delivery_pricing (
 
 -- Special offers
 CREATE TABLE special_offers (
-    offer_id SERIAL PRIMARY KEY,
+    offer_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     title VARCHAR(100) NOT NULL,
     description TEXT,
+    discount_type VARCHAR(20) CHECK (discount_type IN ('percentage', 'fixed')),
+    discount_value NUMERIC(10, 2) CHECK (discount_value > 0),
     discount_percent NUMERIC(5, 2) CHECK (discount_percent > 0 AND discount_percent <= 100),
     banner_image_url VARCHAR(255),
     valid_from TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
