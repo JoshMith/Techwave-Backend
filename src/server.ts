@@ -211,9 +211,8 @@ app.get("/", (req, res) => {
     <p>Welcome to the backend API for <strong>Techwave</strong>.<br>
     Manage products, orders, users, and more with powerful endpoints.</p>
     <p>Ready to explore the frontend?</p>
-    <a class="btn" href="https://techwave-neon.vercel.app" target="_blank">Go to Techwave Frontend (Production)</a>
+    <a class="btn" href="https://techwaveelectronics.co.ke " target="_blank">Go to Techwave Frontend</a>
     <br><br>
-    <a class="btn" href="http://localhost:4200" target="_blank">Go to Techwave Frontend (Localhost)</a>
     <p style="margin-top:22px;font-size:0.95rem;opacity:0.7;">Enjoy building with Techwave!</p>
   </div>
 </body>
