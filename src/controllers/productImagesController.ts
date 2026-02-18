@@ -10,8 +10,6 @@
 //     sort_order INTEGER DEFAULT 0
 // );
 
-
-
 // src/controllers/productImagesController.ts
 import express from "express";
 import pool from "../config/db.config";
@@ -59,10 +57,11 @@ const upload = multer({
 // @desc    Get all images for a product
 // @route   GET /api/product-images/:productId
 // @access  Public
-export const getProductImages = asyncHandler(async (req: UserRequest, res: express.Response) => {
-  const { productId } = req.params;
+export const getProductImages = asyncHandler(
+  async (req: UserRequest, res: express.Response) => {
+    const { productId } = req.params;
 
-  const query = `
+    const query = `
     SELECT 
       image_id, 
       product_id,
@@ -74,11 +73,12 @@ export const getProductImages = asyncHandler(async (req: UserRequest, res: expre
     WHERE product_id = $1
     ORDER BY sort_order, is_primary DESC
   `;
-  
-  const result = await pool.query(query, [productId]);
 
-  res.status(200).json(result.rows);
-});
+    const result = await pool.query(query, [productId]);
+
+    res.status(200).json(result.rows);
+  },
+);
 
 // @desc    Upload product images
 // @route   POST /api/product-images/upload/:productId
@@ -88,7 +88,8 @@ export const uploadProductImages = [
   asyncHandler(async (req: UserRequest, res: express.Response) => {
     const { productId } = req.params;
     const files = req.files as Express.Multer.File[];
-    const { altText, setPrimary } = req.body;
+    const { altText: rawAltText, setPrimary } = req.body;
+    const altText = Array.isArray(rawAltText) ? rawAltText[0] : rawAltText;
 
     if (!files || files.length === 0) {
       res.status(400);
@@ -106,12 +107,12 @@ export const uploadProductImages = [
        FROM products p
        JOIN sellers s ON p.seller_id = s.seller_id
        WHERE p.product_id = $1 AND s.user_id = $2`,
-      [productId, req.user?.user_id]
+      [productId, req.user?.user_id],
     );
 
     if (productCheck.rows.length === 0) {
       // Clean up uploaded files if product doesn't exist
-      files.forEach(file => {
+      files.forEach((file) => {
         fs.unlinkSync(file.path);
       });
       res.status(404);
@@ -124,7 +125,7 @@ export const uploadProductImages = [
         `UPDATE product_images 
          SET is_primary = false 
          WHERE product_id = $1`,
-        [productId]
+        [productId],
       );
     }
 
@@ -133,7 +134,8 @@ export const uploadProductImages = [
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
       const imageUrl = `/uploads/products/${path.basename(file.path)}`;
-      const isPrimary = (setPrimary === "true" || setPrimary === true) && i === 0;
+      const isPrimary =
+        (setPrimary === "true" || setPrimary === true) && i === 0;
       const altTextValue = altText || `Product image ${i + 1}`;
 
       const result = await pool.query(
@@ -145,7 +147,7 @@ export const uploadProductImages = [
           sort_order
         ) VALUES ($1, $2, $3, $4, $5)
         RETURNING image_id, product_id, image_url, alt_text, is_primary, sort_order`,
-        [productId, imageUrl, altTextValue, isPrimary, i]
+        [productId, imageUrl, altTextValue, isPrimary, i],
       );
 
       insertedImages.push(result.rows[0]);
@@ -162,212 +164,228 @@ export const uploadProductImages = [
 // @desc    Update product image details
 // @route   PUT /api/product-images/:imageId
 // @access  Private/Seller
-export const updateProductImage = asyncHandler(async (req: UserRequest, res: express.Response) => {
-  const { imageId } = req.params;
-  const { alt_text, is_primary, sort_order } = req.body;
+export const updateProductImage = asyncHandler(
+  async (req: UserRequest, res: express.Response) => {
+    const { imageId } = req.params;
+    const { alt_text, is_primary, sort_order } = req.body;
 
-  // Verify image belongs to seller's product
-  const imageCheck = await pool.query(
-    `SELECT pi.image_id, pi.product_id
+    // Verify image belongs to seller's product
+    const imageCheck = await pool.query(
+      `SELECT pi.image_id, pi.product_id
      FROM product_images pi
      JOIN products p ON pi.product_id = p.product_id
      JOIN sellers s ON p.seller_id = s.seller_id
      WHERE pi.image_id = $1 AND s.user_id = $2`,
-    [imageId, req.user?.user_id]
-  );
+      [imageId, req.user?.user_id],
+    );
 
-  if (imageCheck.rows.length === 0) {
-    return res.status(404).json({ message: "Image not found or unauthorized" });
-  }
+    if (imageCheck.rows.length === 0) {
+      return res
+        .status(404)
+        .json({ message: "Image not found or unauthorized" });
+    }
 
-  const productId = imageCheck.rows[0].product_id;
+    const productId = imageCheck.rows[0].product_id;
 
-  const fieldsToUpdate: string[] = [];
-  const values: any[] = [];
-  let index = 1;
+    const fieldsToUpdate: string[] = [];
+    const values: any[] = [];
+    let index = 1;
 
-  if (alt_text !== undefined) {
-    fieldsToUpdate.push(`alt_text = $${index++}`);
-    values.push(alt_text);
-  }
-  if (is_primary !== undefined) {
-    fieldsToUpdate.push(`is_primary = $${index++}`);
-    values.push(is_primary);
-  }
-  if (sort_order !== undefined) {
-    fieldsToUpdate.push(`sort_order = $${index++}`);
-    values.push(sort_order);
-  }
+    if (alt_text !== undefined) {
+      fieldsToUpdate.push(`alt_text = $${index++}`);
+      values.push(alt_text);
+    }
+    if (is_primary !== undefined) {
+      fieldsToUpdate.push(`is_primary = $${index++}`);
+      values.push(is_primary);
+    }
+    if (sort_order !== undefined) {
+      fieldsToUpdate.push(`sort_order = $${index++}`);
+      values.push(sort_order);
+    }
 
-  if (fieldsToUpdate.length === 0) {
-    return res.status(400).json({ message: "No fields provided for update" });
-  }
+    if (fieldsToUpdate.length === 0) {
+      return res.status(400).json({ message: "No fields provided for update" });
+    }
 
-  values.push(imageId);
+    values.push(imageId);
 
-  // If setting as primary, first reset existing primary image
-  if (is_primary === true) {
-    await pool.query(
-      `UPDATE product_images 
+    // If setting as primary, first reset existing primary image
+    if (is_primary === true) {
+      await pool.query(
+        `UPDATE product_images 
        SET is_primary = false 
        WHERE product_id = $1 AND image_id != $2`,
-      [productId, imageId]
-    );
-  }
+        [productId, imageId],
+      );
+    }
 
-  const query = `
+    const query = `
     UPDATE product_images
     SET ${fieldsToUpdate.join(", ")}
     WHERE image_id = $${index}
     RETURNING image_id, product_id, image_url, alt_text, is_primary, sort_order
   `;
 
-  const result = await pool.query(query, values);
+    const result = await pool.query(query, values);
 
-  if (result.rows.length === 0) {
-    return res.status(404).json({ message: "Image not found" });
-  }
+    if (result.rows.length === 0) {
+      return res.status(404).json({ message: "Image not found" });
+    }
 
-  res.status(200).json(result.rows[0]);
-});
+    res.status(200).json(result.rows[0]);
+  },
+);
 
 // @desc    Delete a product image
 // @route   DELETE /api/product-images/:imageId
 // @access  Private/Seller
-export const deleteProductImage = asyncHandler(async (req: UserRequest, res: express.Response) => {
-  const { imageId } = req.params;
+export const deleteProductImage = asyncHandler(
+  async (req: UserRequest, res: express.Response) => {
+    const { imageId } = req.params;
 
-  // Verify image belongs to seller's product and get image URL
-  const imageCheck = await pool.query(
-    `SELECT pi.image_url, pi.product_id
+    // Verify image belongs to seller's product and get image URL
+    const imageCheck = await pool.query(
+      `SELECT pi.image_url, pi.product_id
      FROM product_images pi
      JOIN products p ON pi.product_id = p.product_id
      JOIN sellers s ON p.seller_id = s.seller_id
      WHERE pi.image_id = $1 AND s.user_id = $2`,
-    [imageId, req.user?.user_id]
-  );
+      [imageId, req.user?.user_id],
+    );
 
-  if (imageCheck.rows.length === 0) {
-    res.status(404);
-    throw new Error("Image not found or unauthorized");
-  }
-
-  // Delete from database
-  await pool.query(
-    `DELETE FROM product_images 
-     WHERE image_id = $1`,
-    [imageId]
-  );
-
-  // Delete the actual file
-  const imagePath = path.join(__dirname, "../../public", imageCheck.rows[0].image_url);
-  if (fs.existsSync(imagePath)) {
-    try {
-      fs.unlinkSync(imagePath);
-    } catch (error) {
-      console.error("Error deleting file:", error);
+    if (imageCheck.rows.length === 0) {
+      res.status(404);
+      throw new Error("Image not found or unauthorized");
     }
-  }
 
-  res.status(200).json({
-    success: true,
-    message: "Image deleted successfully",
-  });
-});
+    // Delete from database
+    await pool.query(
+      `DELETE FROM product_images 
+     WHERE image_id = $1`,
+      [imageId],
+    );
+
+    // Delete the actual file
+    const imagePath = path.join(
+      __dirname,
+      "../../public",
+      imageCheck.rows[0].image_url,
+    );
+    if (fs.existsSync(imagePath)) {
+      try {
+        fs.unlinkSync(imagePath);
+      } catch (error) {
+        console.error("Error deleting file:", error);
+      }
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Image deleted successfully",
+    });
+  },
+);
 
 // @desc    Serve product images statically by productId
 // @route   GET /api/product-images/product/:productId
 // @access  Public
-export const serveProductImages = asyncHandler(async (req: express.Request, res: express.Response) => {
-  try {
-    const { productId } = req.params;
+export const serveProductImages = asyncHandler(
+  async (req: express.Request, res: express.Response) => {
+    try {
+      const { productId } = req.params;
 
-    // Validate productId
-    if (!productId || isNaN(Number(productId))) {
-      return res.status(400).json({ 
-        success: false,
-        message: "Invalid product ID" 
-      });
-    }
+      // Validate productId
+      if (!productId || isNaN(Number(productId))) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid product ID",
+        });
+      }
 
-    const query = `
+      const query = `
       SELECT image_url, alt_text, is_primary, sort_order 
       FROM product_images 
       WHERE product_id = $1 
       ORDER BY is_primary DESC, sort_order ASC
     `;
-    
-    const result = await pool.query(query, [productId]);
 
-    if (result.rows.length === 0) {
-      return res.status(404).json({ 
+      const result = await pool.query(query, [productId]);
+
+      if (result.rows.length === 0) {
+        return res.status(404).json({
+          success: false,
+          message: "No images found for this product",
+        });
+      }
+
+      // Construct full URLs for the images
+      const baseUrl = `${req.protocol}://${req.get("host")}`;
+      const imagesWithFullUrls = result.rows.map((row, index) => ({
+        image_id: row.image_id,
+        image_url: row.image_url,
+        full_url: `${baseUrl}${row.image_url}`, // This will be accessible via static serving
+        alt_text: row.alt_text || `Product image ${index + 1}`,
+        is_primary: row.is_primary,
+        sort_order: row.sort_order || index,
+      }));
+
+      return res.status(200).json({
+        success: true,
+        productId: productId,
+        count: imagesWithFullUrls.length,
+        images: imagesWithFullUrls,
+      });
+    } catch (error) {
+      console.error("Error serving product images:", error);
+      return res.status(500).json({
         success: false,
-        message: "No images found for this product" 
+        message: "Internal server error",
       });
     }
-
-    // Construct full URLs for the images
-    const baseUrl = `${req.protocol}://${req.get('host')}`;
-    const imagesWithFullUrls = result.rows.map((row, index) => ({
-      image_id: row.image_id,
-      image_url: row.image_url,
-      full_url: `${baseUrl}${row.image_url}`, // This will be accessible via static serving
-      alt_text: row.alt_text || `Product image ${index + 1}`,
-      is_primary: row.is_primary,
-      sort_order: row.sort_order || index
-    }));
-
-    return res.status(200).json({ 
-      success: true,
-      productId: productId,
-      count: imagesWithFullUrls.length,
-      images: imagesWithFullUrls
-    });
-
-  } catch (error) {
-    console.error('Error serving product images:', error);
-    return res.status(500).json({ 
-      success: false,
-      message: "Internal server error" 
-    });
-  }
-});
+  },
+);
 
 // @desc    Get individual image file
 // @route   GET /api/product-images/file/:filename
 // @access  Public
-export const getImageFile = asyncHandler(async (req: express.Request, res: express.Response) => {
-  try {
-    const { filename } = req.params;
-    
-    if (!filename) {
-      return res.status(400).json({ 
+export const getImageFile = asyncHandler(
+  async (req: express.Request, res: express.Response) => {
+    try {
+      const { filename } = req.params;
+
+      if (!filename) {
+        return res.status(400).json({
+          success: false,
+          message: "Filename is required",
+        });
+      }
+
+      // Security: Prevent directory traversal
+      const safeFilename = path.basename(filename);
+      const filePath = path.join(
+        __dirname,
+        "../../public/uploads/products",
+        safeFilename,
+      );
+
+      // Check if file exists
+      if (!fs.existsSync(filePath)) {
+        return res.status(404).json({
+          success: false,
+          message: "Image file not found",
+        });
+      }
+
+      // Set cache headers for better performance
+      res.setHeader("Cache-Control", "public, max-age=31536000"); // 1 year cache
+      res.sendFile(filePath);
+    } catch (error) {
+      console.error("Error serving image file:", error);
+      return res.status(500).json({
         success: false,
-        message: "Filename is required" 
+        message: "Internal server error",
       });
     }
-
-    // Security: Prevent directory traversal
-    const safeFilename = path.basename(filename);
-    const filePath = path.join(__dirname, '../../public/uploads/products', safeFilename);
-
-    // Check if file exists
-    if (!fs.existsSync(filePath)) {
-      return res.status(404).json({ 
-        success: false,
-        message: "Image file not found" 
-      });
-    }
-
-    // Set cache headers for better performance
-    res.setHeader('Cache-Control', 'public, max-age=31536000'); // 1 year cache
-    res.sendFile(filePath);
-
-  } catch (error) {
-    console.error('Error serving image file:', error);
-    return res.status(500).json({ 
-      success: false,
-      message: "Internal server error" 
-    });
-  }
-});
+  },
+);
