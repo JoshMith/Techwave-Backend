@@ -227,6 +227,15 @@ app.use(notFound, errorHandler);
 const PORT = process.env.PORT || 5000;
 
 app.listen(PORT, () => {
-  console.log(`🚀🚀 server is running on port - ${PORT}
-        link: http://localhost:${PORT}`);
+  console.log(`
+╔═══════════════════════════════════════════════════════════════╗
+║                                                               ║
+║          🚀 TECHWAVE BACKEND API SERVER ACTIVATED! 🚀         ║
+║                                                               ║
+║  ✨ Running on port: ${PORT}                                     ║
+║  🌐 API Link: https://techwaveelectronics.co.ke/api           ║
+║  💪 Ready to handle requests and rock the digital world!      ║
+║                                                               ║
+╚═══════════════════════════════════════════════════════════════╝
+  `);
 });
