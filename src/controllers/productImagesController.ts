@@ -354,7 +354,7 @@ export const getImageFile = asyncHandler(
     try {
       const { filename } = req.params;
 
-      if (!filename) {
+      if (!filename || typeof filename !== "string") {
         return res.status(400).json({
           success: false,
           message: "Filename is required",
