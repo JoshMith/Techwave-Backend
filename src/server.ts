@@ -225,6 +225,7 @@ app.use(notFound, errorHandler);
 
 //6: start the serve
 const PORT = process.env.PORT || 5000;
+const ApiUrl = process.env.API_URL
 
 app.listen(PORT, () => {
   console.log(`
@@ -233,7 +234,7 @@ app.listen(PORT, () => {
 ║          🚀 TECHWAVE BACKEND API SERVER ACTIVATED! 🚀         ║
 ║                                                               ║
 ║  ✨ Running on port: ${PORT}                                     ║
-║  🌐 API Link: https://techwaveelectronics.co.ke/api           ║
+║  🌐 API Link: ${ApiUrl}                           ║
 ║  💪 Ready to handle requests and rock the digital world!      ║
 ║                                                               ║
 ╚═══════════════════════════════════════════════════════════════╝
