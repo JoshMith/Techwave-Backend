@@ -69,6 +69,15 @@ CREATE TABLE categories (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Insert categories
+INSERT INTO categories (name, description, featured, icon_path) VALUES
+('Phones', 'Smartphones and feature phones', true, '/icons/phones.png'),
+('Laptops', 'Laptops and notebooks', true, '/icons/laptops.png'),
+('Accessories', 'Phone cases, chargers, etc.', true, '/icons/accessories.png'),
+('Home Appliances', 'TVs, fridges, etc.', true, '/icons/appliances.png'),
+('Gaming', 'PS5, Xbox, etc', true, '/icons/gaming.png'),
+('Audio & Sound', 'Wireless Headphones, Bluetooth Speaker, etc', true, '/icons/audio-sound.png');
+
 -- Products
 CREATE TABLE products (
     product_id SERIAL PRIMARY KEY,
