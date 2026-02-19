@@ -7,7 +7,8 @@
     "build": "tsc",
     "prestart": "pnpm run build",
     "start": "node dist/server.js",
-    "dev": "nodemon src/server.ts"
+    "dev": "nodemon src/server.ts",
+    "deploy": "tsc && pm2 restart TechWave"
   },
   "keywords": [],
   "author": "",
