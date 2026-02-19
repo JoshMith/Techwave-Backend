@@ -1,3 +1,14 @@
+# Dependencies
+node_modules/
 .env
-node_modules
-dist
+
+# Build
+dist/
+build/
+
+# Uploads - ignore product images but keep folder
+public/uploads/products/*
+!public/uploads/products/.gitkeep
+
+# OS files
+.DS_Store
