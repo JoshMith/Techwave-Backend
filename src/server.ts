@@ -234,7 +234,7 @@ app.listen(PORT, () => {
 ║          🚀 TECHWAVE BACKEND API SERVER ACTIVATED! 🚀         ║
 ║                                                               ║
 ║  ✨ Running on port: ${PORT}                                     ║
-║  🌐 API Link: ${ApiUrl}                           ║
+║  🌐 API Link: ${ApiUrl}           ║
 ║  💪 Ready to handle requests and rock the digital world!      ║
 ║                                                               ║
 ╚═══════════════════════════════════════════════════════════════╝
