@@ -1,7 +1,7 @@
 import express from 'express'
 import { createOrder, getOrders, getOrderById, updateOrder, deleteOrder, getOrdersCount, getOrdersByUserId } from '../controllers/ordersController';
 import { protect } from '../middlewares/auth/protect';
-import { adminCustomerGuard, adminGuard, adminSellerGuard, ownUserGuard, userGuard } from '../middlewares/auth/roleMiddleWare';
+import { adminCustomerGuard, adminGuard, ownUserGuard, userGuard } from '../middlewares/auth/roleMiddleWare';
 
 
 const router = express.Router()

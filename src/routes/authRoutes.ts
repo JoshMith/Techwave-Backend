@@ -1,18 +1,17 @@
-import express from 'express'
-import { googleAuth, googleAuthCallback, login, logout, register, verifyEmail } from '../controllers/authController'
+import express from "express";
+import {
+    login, agentLogin, register, logout,
+    verifyEmail, googleAuth, googleAuthCallback,
+} from "../controllers/authController";
 
-const router = express.Router()
+const router = express.Router();
 
-//public routes 
-router.post("/register", register)
-router.post("/login", login)
-router.post("/logout", logout)
+router.post("/register",          register);
+router.post("/login",             login);        // customers + admins
+router.post("/agent/login",       agentLogin);   // agents only (separate endpoint)
+router.post("/logout",            logout);
+router.get("/verifyEmail",        verifyEmail);
+router.get("/google",             googleAuth);
+router.get("/google/callback",    googleAuthCallback);
 
-router.get("/verifyEmail",verifyEmail)
-
-// Google OAuth routes
-router.get("/google", googleAuth)
-router.get("/google/callback", googleAuthCallback)
-
-
-export default router
+export default router;

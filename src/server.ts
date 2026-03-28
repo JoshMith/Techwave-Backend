@@ -5,7 +5,7 @@ import cors from "cors";
 import { errorHandler, notFound } from "./middlewares/errorMiddlewares";
 import authRoutes from "./routes/authRoutes";
 import usersRoute from "./routes/usersRoute";
-import sellersRoutes from "./routes/sellersRoutes";
+import agentsRoutes from "./routes/agentRoutes";
 import addressesRoutes from "./routes/addressesRoutes";
 import categoriesRoutes from "./routes/categoriesRoutes";
 import productsRoutes from "./routes/productsRoutes";
@@ -88,7 +88,7 @@ app.options("*", (req, res) => {
 //4. routes
 app.use("/auth", authRoutes);
 app.use("/users", usersRoute);
-app.use("/sellers", sellersRoutes);
+app.use("/agents", agentsRoutes);
 app.use("/addresses", addressesRoutes);
 app.use("/categories", categoriesRoutes);
 app.use("/products", productsRoutes);
