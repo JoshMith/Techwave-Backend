@@ -5,6 +5,8 @@ import { generateToken } from "../utils/helpers/generateToken";
 import asyncHandler from "../middlewares/asyncHandler";
 import jwt from "jsonwebtoken";
 import passport from "passport";
+import { sendPasswordResetEmail } from "../utils/helpers/emailService";
+
 
 // ============================================================
 // AUTH CONTROLLER — v2.0
@@ -227,14 +229,13 @@ export const forgotPassword = asyncHandler(async (req: Request, res: Response) =
         return;
     }
     
-    // Check if user exists (don't reveal this to client for security)
+    // Check if user exists
     const userQuery = await pool.query(
-        `SELECT user_id, email FROM users WHERE email = $1`,
+        `SELECT user_id, email, name FROM users WHERE email = $1`,
         [email.toLowerCase()]
     );
     
     // For security, always return success even if email doesn't exist
-    // This prevents email enumeration attacks
     if (userQuery.rows.length === 0) {
         res.status(200).json({ 
             message: "If an account exists with that email, you will receive a reset link." 
@@ -251,7 +252,7 @@ export const forgotPassword = asyncHandler(async (req: Request, res: Response) =
         { expiresIn: "1h" }
     );
     
-    // Store token in database (simple - no extra table needed)
+    // Store token in database
     await pool.query(
         `UPDATE users 
          SET reset_token = $1, 
@@ -263,12 +264,14 @@ export const forgotPassword = asyncHandler(async (req: Request, res: Response) =
     // Create reset link
     const resetLink = `${process.env.FRONTEND_URL}/reset-password?token=${resetToken}`;
     
-    // TODO: Send email (you'll need nodemailer setup)
-    // For now, log it for testing
-    console.log(`Password reset link for ${email}: ${resetLink}`);
-    
-    // In production, send email here:
-    // await sendPasswordResetEmail(email, resetLink);
+    // ACTUALLY SEND THE EMAIL
+    try {
+        await sendPasswordResetEmail(email, resetLink);
+        console.log(`Password reset email sent to: ${email}`);
+    } catch (emailError) {
+        console.error('Failed to send password reset email:', emailError);
+        // Still return success to user (security)
+    }
     
     res.status(200).json({ 
         message: "If an account exists with that email, you will receive a reset link." 

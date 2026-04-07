@@ -1,19 +1,31 @@
+// src/routes/productImagesRoutes.ts
+// v2.0 — Removed sellers guard. All mutations require admin role.
+// Added: POST /backfill for one-time DB recovery of orphaned disk images.
+
 import express from "express";
-import { getProductImages, uploadProductImages, updateProductImage, deleteProductImage, getImageFile, serveProductImages } from "../controllers/productImagesController";
-import path from "path";
-import { get } from "http";
+import {
+  serveProductImages,
+  getProductImages,
+  getImageFile,
+  uploadProductImages,
+  updateProductImage,
+  deleteProductImage,
+  backfillProductImages,
+} from "../controllers/productImagesController";
 import { protect } from "../middlewares/auth/protect";
+import { adminGuard } from "../middlewares/auth/roleMiddleWare";
 
-const router = express.Router()
+const router = express.Router();
 
-// Public routes
-router.get("/product/:productId", serveProductImages); // Get images by productId
-router.get("/file/:filename", getImageFile); // Serve individual image file
+// ── Public routes ─────────────────────────────────────────────────────────────
+router.get("/product/:productId", serveProductImages);   // storefront image fetch
+router.get("/file/:filename",     getImageFile);          // static file fallback
 
-// Protected routes
-router.get("/:productId", getProductImages);
-router.post("/upload/:productId", protect, uploadProductImages);
-router.put("/:productId/images/:imageId", protect, updateProductImage);
-router.delete("/:productId/images/:imageId", protect, deleteProductImage);
+// ── Admin-only mutations ──────────────────────────────────────────────────────
+router.get(  "/:productId",              protect, adminGuard, getProductImages);
+router.post( "/upload/:productId",       protect, adminGuard, uploadProductImages);
+router.post( "/backfill",                protect, adminGuard, backfillProductImages);
+router.put(  "/:imageId",               protect, adminGuard, updateProductImage);
+router.delete("/:imageId",              protect, adminGuard, deleteProductImage);
 
-export default router
+export default router;

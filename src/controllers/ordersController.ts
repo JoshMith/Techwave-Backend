@@ -91,6 +91,99 @@ export const getOrdersByUserId = asyncHandler(async (req: UserRequest, res: expr
     res.status(200).json(result.rows);
 });
 
+// @desc    Get user's delivered order for a specific product
+// @route   GET /api/orders/user/product/:productId
+// @access  Private
+export const getUserOrderForProduct = asyncHandler(async (req: UserRequest, res: express.Response) => {
+    const { productId } = req.params;
+    const userId = req.user?.user_id;
+
+    if (!userId) {
+        return res.status(401).json({ message: "Not authenticated" });
+    }
+
+    const query = `
+    SELECT o.order_id, o.status
+    FROM orders o
+    JOIN order_items oi ON o.order_id = oi.order_id
+    WHERE o.user_id = $1 
+      AND oi.product_id = $2
+      AND o.status = 'delivered'
+    LIMIT 1
+  `;
+
+    const result = await pool.query(query, [userId, productId]);
+
+    if (result.rows.length === 0) {
+        return res.status(404).json({ message: "No delivered order found for this product" });
+    }
+
+    res.status(200).json({ order_id: result.rows[0].order_id });
+});
+
+// ============================================================
+// This endpoint is for ADMIN use: fetch any customer's orders by user_id.
+// The existing getOrdersByUserId only returns the LOGGED-IN user's orders.
+// ============================================================
+
+export const getOrdersByUserIdForAdmin = asyncHandler(async (req: UserRequest, res: express.Response) => {
+    const { userId } = req.params;
+
+    if (!userId || isNaN(Number(userId))) {
+        return res.status(400).json({ message: "Valid user ID is required" });
+    }
+
+    const result = await pool.query(
+        `SELECT
+             o.order_id,
+             o.user_id,
+             o.total_amount,
+             o.delivery_fee,
+             o.status,
+             o.payment_method,
+             o.referral_code,
+             o.commission_total,
+             o.notes,
+             o.created_at,
+             o.updated_at,
+             a.full_name AS agent_name,
+             a.agent_code,
+             addr.city,
+             addr.street,
+             addr.postal_code,
+             json_agg(
+                 json_build_object(
+                     'order_item_id',  oi.order_item_id,
+                     'product_id',     oi.product_id,
+                     'product_title',  p.title,
+                     'quantity',       oi.quantity,
+                     'unit_price',     oi.unit_price,
+                     'subtotal',       oi.subtotal,
+                     'category',       cat.name
+                 )
+                 ORDER BY oi.order_item_id
+             ) AS items
+         FROM orders o
+         JOIN addresses addr  ON o.address_id  = addr.address_id
+         LEFT JOIN agents a   ON o.agent_id    = a.agent_id
+         JOIN order_items oi  ON o.order_id    = oi.order_id
+         JOIN products p      ON oi.product_id = p.product_id
+         JOIN categories cat  ON oi.category_id = cat.category_id
+         WHERE o.user_id = $1
+         GROUP BY
+             o.order_id, o.user_id, o.total_amount, o.delivery_fee,
+             o.status, o.payment_method, o.referral_code, o.commission_total,
+             o.notes, o.created_at, o.updated_at,
+             a.full_name, a.agent_code,
+             addr.city, addr.street, addr.postal_code
+         ORDER BY o.created_at DESC`,
+        [userId]
+    );
+
+    // Always return 200 with an array (empty if no orders yet)
+    res.status(200).json(result.rows);
+});
+
 // @desc    Create order — resolves referral code, stores commissions
 // @route   POST /orders
 // @access  Private/Customer
@@ -152,7 +245,7 @@ export const createOrder = asyncHandler(async (req: UserRequest, res: express.Re
                 return res.status(400).json({ message: `Insufficient stock for product ${item.product_id}` });
             }
             const unitPrice = p.is_on_sale && p.sale_price ? p.sale_price : p.price;
-            const subtotal  = parseFloat(unitPrice) * item.quantity - (item.discount || 0);
+            const subtotal = parseFloat(unitPrice) * item.quantity - (item.discount || 0);
 
             await client.query(
                 `INSERT INTO order_items
@@ -208,11 +301,11 @@ export const updateOrder = asyncHandler(async (req: UserRequest, res: express.Re
     const fields: string[] = [];
     const values: any[] = [];
     let i = 1;
-    if (status)        { fields.push(`status = $${i++}`);        values.push(status); }
-    if (notes)         { fields.push(`notes = $${i++}`);         values.push(notes); }
+    if (status) { fields.push(`status = $${i++}`); values.push(status); }
+    if (notes) { fields.push(`notes = $${i++}`); values.push(notes); }
     if (refund_status) { fields.push(`refund_status = $${i++}`); values.push(refund_status); }
     if (refund_amount) { fields.push(`refund_amount = $${i++}`); values.push(refund_amount); }
-    if (refund_notes)  { fields.push(`refund_notes = $${i++}`);  values.push(refund_notes); }
+    if (refund_notes) { fields.push(`refund_notes = $${i++}`); values.push(refund_notes); }
     if (fields.length === 0) return res.status(400).json({ message: "No fields provided" });
     fields.push(`updated_at = CURRENT_TIMESTAMP`);
     values.push(id);
@@ -238,3 +331,4 @@ export const getOrdersCount = asyncHandler(async (req: UserRequest, res: express
     const result = await pool.query("SELECT COUNT(*) AS ordercount FROM orders");
     res.status(200).json({ orderCount: parseInt(result.rows[0].ordercount, 10) });
 });
+
