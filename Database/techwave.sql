@@ -95,6 +95,14 @@ COMMENT ON TABLE  users IS 'Base account table for all roles: customers, agents,
 COMMENT ON COLUMN users.role IS 'customer: public shopper | agent: referral sales agent | admin: platform administrator';
 COMMENT ON COLUMN users.phone IS 'Kenyan format: +254XXXXXXXXX';
 
+-- Add columns for password reset (simple approach)
+ALTER TABLE users 
+ADD COLUMN reset_token VARCHAR(255) NULL,
+ADD COLUMN reset_token_expires TIMESTAMP WITH TIME ZONE NULL;
+
+-- Create index for faster lookups
+CREATE INDEX idx_users_reset_token ON users(reset_token) WHERE reset_token IS NOT NULL;
+
 
 -- ============================================================
 -- AGENTS

@@ -137,7 +137,7 @@ export const register = asyncHandler(async (req: Request, res: Response, next: N
 
     const newUser = await pool.query(
         `INSERT INTO users (name, email, phone, password_hash, role, terms, newsletter)
-         VALUES ($1, $2, $3, $4, 'admin', $5, $6)
+         VALUES ($1, $2, $3, $4, 'customer', $5, $6)
          RETURNING user_id, name, email, phone, role`,
         [name, email, phone, hashedPassword, terms, newsletter]
     );
@@ -210,4 +210,158 @@ export const googleAuthCallback = asyncHandler(async (req: Request, res: Respons
 
         res.redirect(`${process.env.FRONTEND_URL}/home`);
     })(req, res, next);
+});
+
+// ============================================================
+// PASSWORD RESET FUNCTIONS — Simple JWT-based approach
+// ============================================================
+
+// @desc    Request password reset (send email with link)
+// @route   POST /auth/forgot-password
+// @access  Public
+export const forgotPassword = asyncHandler(async (req: Request, res: Response) => {
+    const { email } = req.body;
+    
+    if (!email) {
+        res.status(400).json({ message: "Email is required" });
+        return;
+    }
+    
+    // Check if user exists (don't reveal this to client for security)
+    const userQuery = await pool.query(
+        `SELECT user_id, email FROM users WHERE email = $1`,
+        [email.toLowerCase()]
+    );
+    
+    // For security, always return success even if email doesn't exist
+    // This prevents email enumeration attacks
+    if (userQuery.rows.length === 0) {
+        res.status(200).json({ 
+            message: "If an account exists with that email, you will receive a reset link." 
+        });
+        return;
+    }
+    
+    const user = userQuery.rows[0];
+    
+    // Generate reset token (expires in 1 hour)
+    const resetToken = jwt.sign(
+        { userId: user.user_id, purpose: "password_reset" },
+        process.env.JWT_SECRET!,
+        { expiresIn: "1h" }
+    );
+    
+    // Store token in database (simple - no extra table needed)
+    await pool.query(
+        `UPDATE users 
+         SET reset_token = $1, 
+             reset_token_expires = NOW() + INTERVAL '1 hour'
+         WHERE user_id = $2`,
+        [resetToken, user.user_id]
+    );
+    
+    // Create reset link
+    const resetLink = `${process.env.FRONTEND_URL}/reset-password?token=${resetToken}`;
+    
+    // TODO: Send email (you'll need nodemailer setup)
+    // For now, log it for testing
+    console.log(`Password reset link for ${email}: ${resetLink}`);
+    
+    // In production, send email here:
+    // await sendPasswordResetEmail(email, resetLink);
+    
+    res.status(200).json({ 
+        message: "If an account exists with that email, you will receive a reset link." 
+    });
+});
+
+// @desc    Reset password using token
+// @route   POST /auth/reset-password
+// @access  Public
+export const resetPassword = asyncHandler(async (req: Request, res: Response) => {
+    const { token, newPassword } = req.body;
+    
+    if (!token || !newPassword) {
+        res.status(400).json({ message: "Token and new password are required" });
+        return;
+    }
+    
+    if (newPassword.length < 6) {
+        res.status(400).json({ message: "Password must be at least 6 characters" });
+        return;
+    }
+    
+    // Verify token and check if it's still valid in database
+    const userQuery = await pool.query(
+        `SELECT user_id, email, reset_token, reset_token_expires 
+         FROM users 
+         WHERE reset_token = $1 AND reset_token_expires > NOW()`,
+        [token]
+    );
+    
+    if (userQuery.rows.length === 0) {
+        res.status(400).json({ message: "Invalid or expired reset token" });
+        return;
+    }
+    
+    const user = userQuery.rows[0];
+    
+    // Verify JWT as additional security
+    try {
+        const decoded = jwt.verify(token, process.env.JWT_SECRET!) as any;
+        if (decoded.userId !== user.user_id || decoded.purpose !== "password_reset") {
+            res.status(400).json({ message: "Invalid token" });
+            return;
+        }
+    } catch (error) {
+        res.status(400).json({ message: "Invalid or expired token" });
+        return;
+    }
+    
+    // Hash new password
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(newPassword, salt);
+    
+    // Update password and clear reset token
+    await pool.query(
+        `UPDATE users 
+         SET password_hash = $1, 
+             reset_token = NULL, 
+             reset_token_expires = NULL
+         WHERE user_id = $2`,
+        [hashedPassword, user.user_id]
+    );
+    
+    res.status(200).json({ message: "Password has been reset successfully" });
+});
+
+// @desc    Verify reset token (check if valid)
+// @route   POST /auth/verify-reset-token
+// @access  Public
+export const verifyResetToken = asyncHandler(async (req: Request, res: Response) => {
+    const { token } = req.body;
+    
+    if (!token) {
+        res.status(400).json({ message: "Token is required" });
+        return;
+    }
+    
+    const userQuery = await pool.query(
+        `SELECT user_id FROM users 
+         WHERE reset_token = $1 AND reset_token_expires > NOW()`,
+        [token]
+    );
+    
+    if (userQuery.rows.length === 0) {
+        res.status(400).json({ message: "Invalid or expired token" });
+        return;
+    }
+    
+    // Verify JWT
+    try {
+        jwt.verify(token, process.env.JWT_SECRET!);
+        res.status(200).json({ valid: true, message: "Token is valid" });
+    } catch (error) {
+        res.status(400).json({ valid: false, message: "Invalid or expired token" });
+    }
 });
