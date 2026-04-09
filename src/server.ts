@@ -25,12 +25,35 @@ import cartRoutes from "./routes/cartRoutes";
 import mpesaRoutes from "./routes/mpesaRoutes";
 import adminDashboardRoutes from "./routes/adminDashboardRoutes";
 import adminManagementRoutes from "./routes/adminManagementRoutes";
+import { RedisStore } from "connect-redis";
+import { createClient } from "redis";
 
 // 1:dotenv
 dotenv.config();
 
 //2:instance of express
 const app = express();
+
+let redisClient: any;
+
+if (process.env.NODE_ENV === "production") {
+  redisClient = createClient({
+    url: "redis://:127.0.0.1:6379", // ← replace password
+  });
+
+  redisClient.on("error", (err: any) => {
+    console.error("❌ Redis error:", err);
+  });
+
+  (async () => {
+    try {
+      await redisClient.connect();
+      console.log("✅ Redis connected");
+    } catch (err) {
+      console.error("❌ Redis connection failed");
+    }
+  })();
+}
 
 app.set("trust proxy", 1);
 
@@ -118,21 +141,37 @@ app.use(
 
 app.use(express.static(path.join(__dirname, "../public")));
 
-// Google strategy
-app.use(
-  session({
-    secret: process.env.SESSION_SECRET!,
-    resave: false,
-    saveUninitialized: false,
-    cookie: {
-      secure: process.env.NODE_ENV === "development" ? false : true,
-      httpOnly: true,
-      maxAge: 24 * 60 * 60 * 1000, // 24 hours
-      sameSite: "none", 
-    },
-    proxy: true,
-  })
-);
+
+
+if (process.env.NODE_ENV === "production") {
+  app.use(
+    session({
+      store: new RedisStore({ client: redisClient }),
+      secret: process.env.SESSION_SECRET!,
+      resave: false,
+      saveUninitialized: false,
+      cookie: {
+        secure: true,
+        httpOnly: true,
+        maxAge: 24 * 60 * 60 * 1000,
+        sameSite: "none",
+      },
+      proxy: true,
+    })
+  );
+} else {
+  app.use(
+    session({
+      secret: process.env.SESSION_SECRET!,
+      resave: false,
+      saveUninitialized: false,
+      cookie: {
+        secure: true,
+        httpOnly: true,
+      },
+    })
+  );
+}
 
 // Initialize Passport
 app.use(passport.initialize());

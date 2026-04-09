@@ -139,7 +139,7 @@ export const register = asyncHandler(async (req: Request, res: Response, next: N
 
     const newUser = await pool.query(
         `INSERT INTO users (name, email, phone, password_hash, role, terms, newsletter)
-         VALUES ($1, $2, $3, $4, 'admin', $5, $6)
+         VALUES ($1, $2, $3, $4, 'customer', $5, $6)
          RETURNING user_id, name, email, phone, role`,
         [name, email, phone, hashedPassword, terms, newsletter]
     );
