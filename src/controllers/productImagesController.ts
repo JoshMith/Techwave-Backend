@@ -47,8 +47,19 @@ const upload = multer({
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
+// function buildBaseUrl(req: express.Request): string {
+//   return `${req.protocol}://${req.get("host")}`;
+// }
+
 function buildBaseUrl(req: express.Request): string {
-  return `${req.protocol}://${req.get("host")}`;
+  const proto =
+    (req.headers["x-forwarded-proto"] as string | undefined)?.split(",")[0]?.trim() ??
+    req.protocol;
+  const host =
+    (req.headers["x-forwarded-host"] as string | undefined)?.split(",")[0]?.trim() ??
+    req.get("host") ??
+    "localhost:3000";
+  return `${proto}://${host}`;
 }
 
 // ── GET /product-images/product/:productId  (public) ─────────────────────────
@@ -78,10 +89,10 @@ export const serveProductImages = asyncHandler(
 
     const baseUrl = buildBaseUrl(req);
     const images = result.rows.map((row, i) => ({
-      image_id:   row.image_id,
-      image_url:  row.image_url,
-      full_url:   `${baseUrl}${row.image_url}`,
-      alt_text:   row.alt_text || `Product image ${i + 1}`,
+      image_id: row.image_id,
+      image_url: row.image_url,
+      full_url: `${baseUrl}${row.image_url}`,
+      alt_text: row.alt_text || `Product image ${i + 1}`,
       is_primary: row.is_primary,
       sort_order: row.sort_order ?? i,
     }));
@@ -231,9 +242,9 @@ export const updateProductImage = asyncHandler(
     const values: any[] = [];
     let idx = 1;
 
-    if (alt_text !== undefined)  { fields.push(`alt_text = $${idx++}`);  values.push(alt_text); }
-    if (is_primary !== undefined){ fields.push(`is_primary = $${idx++}`); values.push(is_primary); }
-    if (sort_order !== undefined){ fields.push(`sort_order = $${idx++}`); values.push(sort_order); }
+    if (alt_text !== undefined) { fields.push(`alt_text = $${idx++}`); values.push(alt_text); }
+    if (is_primary !== undefined) { fields.push(`is_primary = $${idx++}`); values.push(is_primary); }
+    if (sort_order !== undefined) { fields.push(`sort_order = $${idx++}`); values.push(sort_order); }
 
     if (fields.length === 0) {
       return res.status(400).json({ message: "No fields provided for update" });
