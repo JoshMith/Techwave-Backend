@@ -50,22 +50,29 @@ export const getProductById = asyncHandler(async (req: UserRequest, res: express
 });
 
 export const getProductsByCategoryName = asyncHandler(async (req: UserRequest, res: express.Response) => {
-    const { name } = req.params;
+    const rawName = req.params.name ?? '';
+
+    // Express URL-decodes params automatically. Trim for safety.
+    const name = Array.isArray(rawName) ? (rawName[0] ?? '').trim() : rawName.trim();
+
+    if (!name) {
+        return res.status(400).json({ message: "Category name is required" });
+    }
+
     const result = await pool.query(
         `SELECT
              p.product_id, p.title, p.description, p.price, p.sale_price,
              p.is_on_sale, p.stock, p.specs, p.rating, p.review_count,
              p.condition, p.condition_notes, p.created_at,
-             c.name AS category_name
+             c.name AS category_name, c.category_id
          FROM products p
          JOIN categories c ON p.category_id = c.category_id
-         WHERE c.name ILIKE $1 AND p.is_active = TRUE
+         WHERE LOWER(TRIM(c.name)) = LOWER(TRIM($1))
+           AND p.is_active = TRUE
          ORDER BY p.created_at DESC`,
-        [`%${name}%`]
+        [name]
     );
-    if (result.rows.length === 0) {
-        return res.status(404).json({ message: "No products found for this category" });
-    }
+
     res.status(200).json(result.rows);
 });
 
